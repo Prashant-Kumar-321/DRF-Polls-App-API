@@ -17,6 +17,17 @@ class ChoiceSerializer(serializers.ModelSerializer):
 class PollSerializer(serializers.ModelSerializer):
     choices = ChoiceSerializer(many=True, required=False, read_only=True)
 
+    pub_date = serializers.DateTimeField(
+      format='%d-%m-%Y',
+      read_only=True
+    )
+
+    modified_date = serializers.DateTimeField(
+      format='%d-%m-%Y',
+      read_only=True
+    )
+
+
     class Meta: 
         model = Poll 
         fields = '__all__'
