@@ -1,6 +1,6 @@
 # Polls API (pollsAppApi)
-This is a Polls Application APIs
-Simple Django + DRF project that implements polls, choices and votes.
+This is a Polls Application APIs built with Django and Django REST Framework.
+Which allows to crete polls, choices and vote on them.
 
 ## Requirements
 - Python 3.10+ (or your environment's interpreter)
@@ -60,3 +60,6 @@ All API routes are under ```/api/``` (see pollsAppApi/urls.py).
 **Voting:**
 
     POST /api/polls/<poll_pk>/choices/<choice_pk>/vote/ — create or replace a vote 
+
+
+Postman API collection is for the Polls project [here](https://kuberlens.postman.co/workspace/poll-Application~77ca67f2-e7a7-451a-9fe9-f7de1d5ae1bd/collection/37029989-18d21979-c5d2-4afe-9b2a-46b526836041?action=share&source=copy-link&creator=37029989)
