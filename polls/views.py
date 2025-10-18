@@ -1,7 +1,6 @@
-from django.shortcuts import render, get_object_or_404
-from django.contrib.auth.models import User
+from django.shortcuts import get_object_or_404
 from django.db.models import Q
-from rest_framework import viewsets, generics, status
+from rest_framework import viewsets, status
 from rest_framework.views import APIView
 from rest_framework.response import Response
 from .models import Poll, Vote, Choice
@@ -60,7 +59,6 @@ class ChoiceDetail(APIView):
         serializer.save()
         return Response(data=serializer.data, status=status.HTTP_200_OK)
 
-    
     def delete(self, request, poll_pk, choice_pk):
         choice = get_object_or_404(Choice, pk=choice_pk)
 
