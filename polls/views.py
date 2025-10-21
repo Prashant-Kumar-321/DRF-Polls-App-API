@@ -3,15 +3,49 @@ from django.db.models import Q
 from rest_framework import viewsets, status
 from rest_framework.views import APIView
 from rest_framework.response import Response
+from rest_framework.exceptions import PermissionDenied
+
 from .models import Poll, Vote, Choice
 from .serializers import PollSerializer, VoteSerializer, ChoiceSerializer
 
 class PollViewSets(viewsets.ModelViewSet):
     queryset = Poll.objects.all()
     serializer_class = PollSerializer
+    http_method_names = ['get', 'post', 'put', 'delete', 'head', 'options']
+
+    def create(self, request, *args, **kwargs):
+        # add missing data
+        request.data['creator'] = request.user.id
+
+        return super().create(request, *args, **kwargs)
+
+    def destroy(self, request, *args, **kwargs):
+        poll = get_object_or_404(Poll, pk=kwargs['pk'])
+
+        if request.user != poll.creator: 
+            raise PermissionDenied('Access Denied: You can not delete the poll.') 
+
+        return super().destroy(request, *args, **kwargs)
+
+    def update(self, request, *args, **kwargs):
+        poll = get_object_or_404(Poll, pk=kwargs['pk'])
+
+        if request.user != poll.creator: 
+            raise PermissionDenied('Access Denied: You can not update the poll.')
+        
+        # add missing user Id
+        request.data['creator'] = request.user.id
+
+        return super().update(request, *args, **kwargs)
+
 
 class ChoicesList(APIView): 
     def get(self, request, poll_pk): 
+        poll = get_object_or_404(Poll, pk=poll_pk)
+
+        if request.user != poll.creator: 
+            raise PermissionDenied('Access denied: you can access choices of this poll')
+
         choices = Choice.objects.filter(poll__id=poll_pk)
         serializer = ChoiceSerializer(choices, many=True)
 
@@ -19,14 +53,18 @@ class ChoicesList(APIView):
 
     def post(self, request, poll_pk):
         """Create a new choice"""
-
+        
         # check is the poll with given poll_pk exists
         poll = get_object_or_404(Poll, pk=poll_pk)
+
+        if request.user != poll.creator: 
+            raise PermissionDenied('Access Denied: you can not create choice for the poll')
 
         data = request.data
         
         # Add the missing poll pk data
         data['poll'] = poll_pk
+        
 
         serializer = ChoiceSerializer(data=data)
 
@@ -72,6 +110,7 @@ class ChoiceDetail(APIView):
 
         return Response(status=status.HTTP_204_NO_CONTENT)
     
+    
 class CreateVote(APIView): 
     def post(self, request, poll_pk, choice_pk): 
         data = request.data
@@ -113,6 +152,3 @@ class CreateVote(APIView):
 
         if existing_vote:
             existing_vote.delete() 
-
-
-            
