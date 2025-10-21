@@ -61,5 +61,12 @@ All API routes are under ```/api/``` (see pollsAppApi/urls.py).
 
     POST /api/polls/<poll_pk>/choices/<choice_pk>/vote/ — create or replace a vote 
 
+## Access Control 
+
+### Steps to enable access control:
+1. Create api to create users
+2. Create api to login users and get token
+3. Authentication and Permissions scheme setup
+
 
 Postman API collection is for the Polls project [here](https://kuberlens.postman.co/workspace/poll-Application~77ca67f2-e7a7-451a-9fe9-f7de1d5ae1bd/collection/37029989-18d21979-c5d2-4afe-9b2a-46b526836041?action=share&source=copy-link&creator=37029989)
