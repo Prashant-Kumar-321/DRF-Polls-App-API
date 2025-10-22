@@ -1,12 +1,17 @@
 from django.shortcuts import get_object_or_404
 from django.db.models import Q
-from rest_framework import viewsets, status
+from rest_framework.request import Request
+from rest_framework import viewsets, status, generics
+from rest_framework.mixins import UpdateModelMixin, DestroyModelMixin
 from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework.exceptions import PermissionDenied
+from rest_framework.exceptions import NotFound
+from rest_framework.permissions import IsAuthenticated
 
 from .models import Poll, Vote, Choice
 from .serializers import PollSerializer, VoteSerializer, ChoiceSerializer
+from .permissions import IsPollCreator
 
 class PollViewSets(viewsets.ModelViewSet):
     queryset = Poll.objects.all()
@@ -38,115 +43,89 @@ class PollViewSets(viewsets.ModelViewSet):
 
         return super().update(request, *args, **kwargs)
 
+class ChoicesList(generics.ListCreateAPIView): 
+    serializer_class = ChoiceSerializer
+    permission_classes = [IsAuthenticated, IsPollCreator]
 
-class ChoicesList(APIView): 
-    def get(self, request, poll_pk): 
+    def get_queryset(self):
+        """
+        Filter the choices to those belonging to the specific poll
+        """
+        poll_pk = self.kwargs['poll_pk']
+        return Choice.objects.filter(poll__pk=poll_pk)
+
+
+    def perform_create(self, serializer): # view hook
+        """
+        Add the poll foreign key during creation.
+        The authorization check is already performed in get_queryset (which is called before perform_create).
+        """
+        
+        poll_pk = self.kwargs['poll_pk']
         poll = get_object_or_404(Poll, pk=poll_pk)
 
-        if request.user != poll.creator: 
-            raise PermissionDenied('Access denied: you can access choices of this poll')
+        # Save the choices with the current poll
+        serializer.save(poll=poll)
 
-        choices = Choice.objects.filter(poll__id=poll_pk)
-        serializer = ChoiceSerializer(choices, many=True)
+class ChoiceDetail(generics.GenericAPIView, UpdateModelMixin, DestroyModelMixin): 
+    serializer_class = ChoiceSerializer
+    permission_classes = [IsAuthenticated, IsPollCreator]
 
-        return Response(data=serializer.data, status=status.HTTP_200_OK)
+    def get_queryset(self): 
+        poll_pk = self.kwargs['poll_pk']
 
-    def post(self, request, poll_pk):
-        """Create a new choice"""
-        
-        # check is the poll with given poll_pk exists
-        poll = get_object_or_404(Poll, pk=poll_pk)
+        return Choice.objects.filter(poll__id=poll_pk)
 
-        if request.user != poll.creator: 
-            raise PermissionDenied('Access Denied: you can not create choice for the poll')
-
-        data = request.data
-        
-        # Add the missing poll pk data
-        data['poll'] = poll_pk
-        
-
-        serializer = ChoiceSerializer(data=data)
-
-        if not serializer.is_valid(): 
-            return Response(data=serializer.errors, status=status.HTTP_400_BAD_REQUEST)
-    
-        serializer.save()
-
-        return Response(data=serializer.data, status=status.HTTP_201_CREATED)
-
-class ChoiceDetail(APIView): 
-    def get(self, request, poll_pk, choice_pk): 
+    def get_object(self): 
+        choice_pk = self.kwargs['choice_pk']
         choice = get_object_or_404(Choice, pk=choice_pk)
 
-        serializer = ChoiceSerializer(choice)
+        self.check_object_permissions(self.request, choice)
 
-        return Response(data=serializer.data, status=status.HTTP_200_OK)
+        return choice
+
+    # Map put---update and delete---destroy methods
+    def put(self, request, *args, **kwargs):
+        return self.update(request, *args, **kwargs)
     
-    def put(self, request, poll_pk, choice_pk):
-        choice = get_object_or_404(Choice, pk=choice_pk)
+    def delete(self, request, *args, **kwargs): 
+        return self.destroy(self, request, *args, **kwargs)
 
-        data = request.data
-        data['poll'] = poll_pk
 
-        serializer = ChoiceSerializer(instance=choice, data=data)
+class CreateVote(generics.CreateAPIView):
+    serializer_class = VoteSerializer
 
-        if not serializer.is_valid(): 
-            return Response(data=serializer.errors, status=status.HTTP_400_BAD_REQUEST)
-        
-        serializer.save()
-        return Response(data=serializer.data, status=status.HTTP_200_OK)
+    def perform_create(self, serializer):
+        choice = get_object_or_404(Choice, pk=self.kwargs['choice'])
 
-    def delete(self, request, poll_pk, choice_pk):
-        choice = get_object_or_404(Choice, pk=choice_pk)
+        serializer.save(choice=choice, poll=choice.poll, voter=self.request.user)
 
-        if choice.poll.id != poll_pk: 
-            data = {
-              "details": f"poll ({poll_pk}) does not exist."
-            }
-            return Response(data=data, status=status.HTTP_404_NOT_FOUND)
 
-        choice.delete()
-
-        return Response(status=status.HTTP_204_NO_CONTENT)
-    
-    
-class CreateVote(APIView): 
-    def post(self, request, poll_pk, choice_pk): 
-        data = request.data
-
-        data['poll'] = poll_pk
-        data['choice'] = choice_pk
-
-        serializer = VoteSerializer(data=data)
-
-        if vote_exists := \
-            self.delete_any_earlier_vote(poll_pk=poll_pk, choice_pk=choice_pk, voter_pk=data['voter']): 
+    def create(self, request, *args, **kwargs): 
+        if self.delete_any_earlier_vote(**kwargs):
             return Response(data={"details": "vote already exists"})
 
-        if not serializer.is_valid(): 
-            return Response(data=serializer.errors)
-    
-        serializer.save()
+        return super().create(request, *args, **kwargs)
 
-        return Response(data=serializer.data, status=status.HTTP_201_CREATED)
-
-    def delete_any_earlier_vote(self, poll_pk, voter_pk, choice_pk): 
+    def delete_any_earlier_vote(self, **kwargs): 
         """
             Delete the existing vote made by current user on this poll \n
             Return `True` if user has already voted in the same choice of the current poll otherwise `None` \n
             Check if the user has already made a vote on any other choice in this poll
             If yes delete the earlier vote
         """
-        try: 
-            existing_vote = Vote.objects.get(Q(poll__id=poll_pk) & Q(voter__id=voter_pk))
-            
-        except: 
-            pass 
-        
-        if existing_vote.choice.id == choice_pk: 
-            # user is making a vote for the choice where they has alredy made a vote of the current poll
+        existing_vote = None
 
+        try: 
+            existing_vote = Vote.objects.get(Q(poll__id=kwargs['poll_pk']) & Q(voter__id=kwargs['voter']))
+        except:
+            return 
+        
+        # It is guranteed that existing_vote will have vote object here
+
+        if existing_vote.choice.id == kwargs['choice_pk']: 
+            # user has already voted in this choice
+            # no need perform any vote
             return True
 
 
