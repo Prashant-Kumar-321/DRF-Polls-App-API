@@ -96,18 +96,18 @@ class CreateVote(generics.CreateAPIView):
     serializer_class = VoteSerializer
 
     def perform_create(self, serializer):
-        choice = get_object_or_404(Choice, pk=self.kwargs['choice'])
+        choice = get_object_or_404(Choice, pk=self.kwargs['choice_pk'])
 
         serializer.save(choice=choice, poll=choice.poll, voter=self.request.user)
 
 
     def create(self, request, *args, **kwargs): 
-        if self.delete_any_earlier_vote(**kwargs):
+        if self.delete_any_earlier_vote(request, **kwargs):
             return Response(data={"details": "vote already exists"})
 
         return super().create(request, *args, **kwargs)
 
-    def delete_any_earlier_vote(self, **kwargs): 
+    def delete_any_earlier_vote(self, request, **kwargs): 
         """
             Delete the existing vote made by current user on this poll \n
             Return `True` if user has already voted in the same choice of the current poll otherwise `None` \n
@@ -117,12 +117,14 @@ class CreateVote(generics.CreateAPIView):
         existing_vote = None
 
         try: 
-            existing_vote = Vote.objects.get(Q(poll__id=kwargs['poll_pk']) & Q(voter__id=kwargs['voter']))
-        except:
-            return 
+            existing_vote = Vote.objects.get(Q(poll__id=kwargs['poll_pk']) & Q(voter=request.user))
+        except Vote.DoesNotExist:
+            """ 
+            User is making vote in this pole for the first time
+            """
+            return None
         
         # It is guranteed that existing_vote will have vote object here
-
         if existing_vote.choice.id == kwargs['choice_pk']: 
             # user has already voted in this choice
             # no need perform any vote

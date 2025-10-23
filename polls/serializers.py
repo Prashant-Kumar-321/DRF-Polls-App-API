@@ -28,9 +28,9 @@ class ChoiceSerializer(serializers.ModelSerializer):
 		read_only=True
 	)
 
-class Meta:
-	model = Choice
-	fields = '__all__'
+	class Meta:
+		model = Choice
+		fields = '__all__'
 
 class PollSerializer(serializers.ModelSerializer):
 	choices = ChoiceSerializer(many=True, required=False, read_only=True)
