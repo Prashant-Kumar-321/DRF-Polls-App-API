@@ -19,4 +19,17 @@ End Points Design
 
 /polls/<pk>/choices/<choice_pk>/vote/
     POST: Create a vote OR Delete-Create a vote
+
+
+
+
+
+
+
+
+
+Tests
+Poll
+path=/polls/
+viewsets=PollViewSets
     
