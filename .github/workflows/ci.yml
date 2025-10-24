@@ -1,0 +1,56 @@
+name: Python CI # name of workflow
+
+# Tell github Action when workflow should run
+on:
+  push:
+    branches: ["main"]
+  pull_request:
+    branches: ["main"]
+
+jobs:
+  test_project:
+    # Use an Ubuntu runner
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      # Setup Python 3.12
+      - name: Set up Python 3.12
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Get pip cache directory
+        id: pip-cache
+        run: echo "dir=$(pip cache dir)" >> $GITHUB_OUTPUT
+        # Note: This is necessary for a robust cache key on various OS/environments
+
+      - name: Cache Python dependencies
+        uses: actions/cache@v4
+        with:
+          # Use the pip cache directory and checksum of the requirements file for the key
+          path: ${{ steps.pip-cache.outputs.dir }}
+          key: ${{ runner.os }}-pip-${{ hashFiles('requirements.txt') }}
+          restore-keys: |
+            ${{ runner.os }}-pip-
+
+      - name: Install dependencies
+        run: |
+          # Use pip to install dependencies globally or within the runner environment
+          python -m pip install --upgrade pip
+          pip install -r /requirements.txt
+
+      - name: Run tests
+        # The working directory for manage.py test is the directory containing manage.py
+        run: |
+          python manage.py test
+        # The GITHUB_WORKSPACE is the root of your checked-out repository
+      
+      - name: Echo Author Name
+        run: echo "Author - Prashant Kumar Gupta" 
+
+      - name: Echo Repository Name
+        run: echo "Repository - pollAppAPI"
+      
