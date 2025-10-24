@@ -40,7 +40,7 @@ jobs:
         run: |
           # Use pip to install dependencies globally or within the runner environment
           python -m pip install --upgrade pip
-          pip install -r /requirements.txt
+          pip install -r ./requirements.txt
 
       - name: Run tests
         # The working directory for manage.py test is the directory containing manage.py
