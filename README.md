@@ -70,7 +70,7 @@ All API routes are under ```/api/``` (see pollsAppApi/urls.py).
 
 
 ## Configure Github Actions for CI
-Include a `.github/workflows/ci.yml` file in your repository which automatically runs Unit test on every push to the main branch.
+Include a `Github Action workflow` file in the repository which automatically runs Unit test on every push and pull request on the main branch.
 
 
 Postman API collection is for the Polls project [here](https://www.postman.com/kuberlens/poll-application/collection/500cb2l/polls-app-apis)
