@@ -24,7 +24,7 @@ class PollTest(APITestCase):
         self.factory = APIRequestFactory()
         self.view = PollViewSets.as_view({'post' : 'list'})
 
-    def _test_list(self):
+    def test_list(self):
         response = self.client.get(
             path=self.url,
             HTTP_AUTHORIZATION = f'Token {self.token.key}'
@@ -62,7 +62,7 @@ class PollTest(APITestCase):
             f'Expected satus code was 201, received {response.status_code} instead'
         )
 
-    def _test_create_a_poll_without_authentication_token(self):
+    def test_create_a_poll_without_authentication_token(self):
         data = {
             'question': 'Test Poll'
         }
@@ -80,7 +80,7 @@ class PollTest(APITestCase):
             f"Expected status code was 401, Received {response.status_code} instead"
         )
     
-    def _test_create_a_poll_without_authentication_token2(self): 
+    def test_create_a_poll_without_authentication_token2(self): 
         data={
             'question': 'Test Poll'
         }
@@ -125,4 +125,34 @@ class PollTest(APITestCase):
             poll_data['question']
         )
 
+    def test_update_poll(self):
+        """Test updating an existing poll"""
 
+        # Create a poll
+        poll_data={'question': 'Original Question'}
+        create_response = self.client.post(
+            path=self.url,
+            data=poll_data,
+            HTTP_AUTHORIZATION=f"Token {self.token.key}"
+        )
+
+        poll_id=create_response.data['id']
+
+        # Update the poll
+        update_data={'question': 'Updated Question'}
+        response = self.client.put(
+            path=f'{self.url}{poll_id}/',
+            data=update_data,
+            content_type='application/json',
+            HTTP_AUTHORIZATION=f'Token {self.token.key}'
+        )
+
+        self.assertEqual(
+            response.status_code,
+            200
+        )
+
+        self.assertEqual(
+            response.data['question'],
+            update_data['question']
+        )
