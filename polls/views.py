@@ -18,9 +18,12 @@ class PollViewSets(viewsets.ModelViewSet):
     serializer_class = PollSerializer
     http_method_names = ['get', 'post', 'put', 'delete', 'head', 'options']
 
+    def perform_create(self, serializer):
+        serializer.save(creator=self.request.user)
+
     def create(self, request, *args, **kwargs):
         # add missing data
-        request.data['creator'] = request.user.id
+        # request.data['creator'] = request.user.id
 
         return super().create(request, *args, **kwargs)
 

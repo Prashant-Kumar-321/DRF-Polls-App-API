@@ -50,6 +50,12 @@ class PollSerializer(serializers.ModelSerializer):
 		model = Poll 
 		fields = '__all__'
 
+		extra_kwargs = {
+			'creator': {
+				'read_only': True
+			}
+		}
+
 
 
 
